@@ -1,4 +1,10 @@
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 import re
 import requests
 
@@ -12,7 +18,13 @@ APARTMENTS = {
 class ApartmentPriceTracker:
     def __init__(self, apts: dict=APARTMENTS):
         self.apartments = apts  # APT_NAME: APT_URL
-        return
+
+        # Selenium web driver setup
+        options = webdriver.ChromeOptions()
+        options.add_argument("--ignore-certificate-errors")
+        options.add_argument("--incognito")
+        options.add_argument("--headless")
+        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     def get_soup(self, apt_name) -> BeautifulSoup:
         try:
@@ -42,7 +54,7 @@ class ApartmentPriceTracker:
             floorplan_price_elems = [card_elem.find("div", class_="card-body").find("p") for card_elem in floorplan_card_elems]
             
             # RegEx pattern for parsing price value
-            pattern = re.compile(r"\$(\S*)\s")
+            pattern = re.compile(r"\$(\S*)\s*")
             
             for price_elem in floorplan_price_elems:
                 match = pattern.search(price_elem.text)
@@ -53,15 +65,19 @@ class ApartmentPriceTracker:
             # Look for 4th (last) li tag in ul with class 'card__stats'
             # Text of li tag is 'Starting at $[price]'
 
-            # TODO: Uh-oh! DYNAMIC WEBSITE! Selenium to the rescue!
-
-            soup = self.get_soup(apt_name)
+            # Uh-oh! DYNAMIC WEBSITE! Selenium to the rescue!
+            self.driver.get(self.apartments[apt_name])
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_all_elements_located((By.CLASS_NAME, "card__stats"))
+            )
+            
+            soup = BeautifulSoup(self.driver.page_source, "html.parser")
             
             floorplan_card_elems = soup.find_all("ul", class_="card__stats")
             floorplan_price_elems = [card_elem.find_all("li")[-1] for card_elem in floorplan_card_elems]
 
             # RegEx pattern for parsing price value
-            pattern = re.compile(r"\$(\S*)\s")
+            pattern = re.compile(r"\$(\S*)\s*")
             
             for price_elem in floorplan_price_elems:
                 match = pattern.search(price_elem.text)
@@ -100,7 +116,7 @@ class ApartmentPriceTracker:
     def get_max_price(self, apt_name: str) -> float:
         return max(self.get_prices(apt_name))
     
-    def get_price_range(self, apt_name: str) -> tuple(float, float):
+    def get_price_range(self, apt_name: str) -> tuple[float, float]:
         return (self.get_min_price(apt_name), self.get_max_price(apt_name))
 
 
