@@ -25,6 +25,9 @@ class ApartmentPriceTracker:
         options.add_argument("--incognito")
         options.add_argument("--headless")
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    
+    def __del__(self):
+        self.driver.quit()
 
     def get_soup(self, apt_name) -> BeautifulSoup:
         try:
