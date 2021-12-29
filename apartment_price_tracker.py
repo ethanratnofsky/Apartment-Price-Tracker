@@ -27,7 +27,10 @@ class ApartmentPriceTracker:
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
     def __del__(self):
-        self.driver.quit()
+        try:
+            self.driver.quit()
+        except ImportError:
+            pass
 
     def get_soup(self, apt_name) -> BeautifulSoup:
         try:
@@ -127,7 +130,8 @@ if __name__ == "__main__":
     apt_price_tracker = ApartmentPriceTracker()
 
     print("-----------------")
-    print("Apartment Prices:")
+    print("Apartment Min Prices:")
     print("-----------------")
     for apt_name in apt_price_tracker.apartments:
-        print(f"{apt_name}: {[f'${price:.2f}' for price in apt_price_tracker.get_prices(apt_name)]}")
+        print(f"{apt_name}: ${min(apt_price_tracker.get_prices(apt_name)):.2f}")
+        # print(f"{apt_name}: {[f'${price:.2f}' for price in apt_price_tracker.get_prices(apt_name)]}")
